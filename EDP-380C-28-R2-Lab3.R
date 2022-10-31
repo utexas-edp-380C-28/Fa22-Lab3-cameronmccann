@@ -246,12 +246,26 @@ outcome_data <- rnorm(n = 100000,
 # Answer 
 
 ## Analyze with OLS function 
-OLSfunc(outcome_data, pred_data)
+(ols_output_3b <- OLSfunc(outcome_data, pred_data))
 
-## Difference for mean Y parameter 
-outcome_param_list$mu_y - mean(outcome_data) 
-## Difference for SD Y parameter 
-outcome_param_list$sd_y - sd(outcome_data)
+## Difference in Pop & Estimates
+Diff_Tbl_3b <- as.data.frame(cbind(
+  Pop = c(intercept_3b, 
+          outcome_param_list[startsWith(names(outcome_param_list),
+                                        prefix = "beta")],
+          SD_e,
+          outcome_param_list$R2),
+  Est = c(ols_output_3b$Estimate)))
+
+### Add rownames 
+rownames(Diff_Tbl_3b) <- c(paste0("beta", 0:(nrow(Diff_Tbl_3b)-3)),
+                           "SD(e)", 
+                           "R2")
+
+### Add difference column 
+Diff_Tbl_3b$Diff <- c(unlist(Diff_Tbl_3b$Pop) - unlist(Diff_Tbl_3b$Est))
+
+Diff_Tbl_3b
 
 # Estimate                  SE           t value  p
 # b0    -4.9370600  0.0404634289861931 -122.012892517685  0
@@ -260,10 +274,12 @@ outcome_param_list$sd_y - sd(outcome_data)
 # SD(e)  2.0361731                  NA                NA NA
 # R2     0.5978875                  NA                NA NA
 
-# ## Difference for mean Y parameter
-# -0.00164875
-# ## Difference for SD Y parameter
-# 1.789009
+# Pop       Est          Diff
+# beta0      -5  -4.93706 -0.0629399882
+# beta1       1 0.9891621  0.0108378625
+# beta2       1 0.9997359  0.0002641061
+# SD(e) 2.03306  2.036173 -0.0031129887
+# R2        0.6 0.5978875  0.0021125328
 
 
 ## 3.c
@@ -294,6 +310,10 @@ var_e <- outcome2_param_list$SD_y^2 - t(Betas_3c) %*% Sigma_Xy_3c
 intercept_3c <- outcome2_param_list$mu_y - 
   t( pred_rmvnorm_list$mu ) %*% Betas_3c 
 
+# R^2
+R2 <- (t(Betas_3c) %*% param2rmvnorm_list(param_list)$Sigma %*% Betas_3c) / 
+  ((t(Betas_3c) %*% param2rmvnorm_list(param_list)$Sigma %*% Betas_3c) + var_e)
+
 # Generate Y data
 outcome2_data <- rnorm(n = 100000, 
       mean = as.vector(intercept_3c) + pred_data %*% Betas_3c,
@@ -302,12 +322,24 @@ outcome2_data <- rnorm(n = 100000,
 # Answer 
 
 ## Analyze with OLS function 
-OLSfunc(outcome2_data, pred_data)
+(ols_output_3c <- OLSfunc(outcome2_data, pred_data))
 
-## Difference for mean Y parameter 
-outcome2_param_list$mu_y - mean(outcome2_data) 
-## Difference for SD Y parameter 
-outcome2_param_list$SD_y - sd(outcome2_data) 
+## Difference in Pop & Estimates
+Diff_Tbl_3c <- data.frame(Pop = c(intercept_3c, 
+                                  Betas_3c,
+                                  sqrt(var_e),
+                                  R2),
+                          Est = ols_output_3c$Estimate)
+
+### Add difference column 
+Diff_Tbl_3c$Diff <- Diff_Tbl_3c$Pop - Diff_Tbl_3c$Est
+
+### Add rownames 
+rownames(Diff_Tbl_3c) <- c(paste0("b", 0:2),
+                             "SD(e)", 
+                             "R2")
+
+Diff_Tbl_3c
 
 # Estimate                  SE           t value  p
 # b0    11.7786196   0.079813607389889  147.576585329678  0
@@ -316,10 +348,12 @@ outcome2_param_list$SD_y - sd(outcome2_data)
 # SD(e)  4.0163259                  NA                NA NA
 # R2     0.3524265                  NA                NA NA
 
-# ## Difference for mean Y parameter
-# -0.000225353
-# ## Difference for SD Y parameter
-# 0.009068572
+#       Pop        Est         Diff
+# b0    11.9230769 11.7786196  0.144457282
+# b1     2.3076923  2.3182149 -0.010522596
+# b2    -1.3461538 -1.3368715 -0.009282314
+# SD(e)  4.0191848  4.0163259  0.002858840
+# R2     0.3538462  0.3524265  0.001419650
 
 
 ## 3.d
@@ -368,15 +402,21 @@ generate_Y_MultiReg_method1 <- function(n, p_x, p_y) {
                       X = pred_data)
   
   # Add population parameter attributes to output 
-  ## Loop relevant population parameters for predictors
-  for (i in seq_along(p_x)) {
-    attr(output_data, names(p_x[i])) <- p_x[[i]]
-  }
+  attr(output_data, "b0") <- intercept
+  attr(output_data, "b1") <- Betas[1]
+  attr(output_data, "b2") <- Betas[2]
+  attr(output_data, "SD(e)") <- SD_e
+  attr(output_data, "R2") <- p_y$R2
   
-  ## Loop relevant population parameters for outcome
-  for (i in seq_along(p_y)) {
-    attr(output_data, names(p_y[i])) <- p_y[[i]]
-  }
+  # ## Loop relevant population parameters for predictors
+  # for (i in seq_along(p_x)) {
+  #   attr(output_data, names(p_x[i])) <- p_x[[i]]
+  # }
+  # 
+  # ## Loop relevant population parameters for outcome
+  # for (i in seq_along(p_y)) {
+  #   attr(output_data, names(p_y[i])) <- p_y[[i]]
+  # }
 
   
   return(output_data)
@@ -417,6 +457,14 @@ generate_Y_MultiReg_method2 <- function(n, p_x, p_y) {
   # Find & set intercept
   intercept <- p_y$mu_y - t(p_x$t_mu) %*% Betas
   
+  # R^2
+  R2 <- ((t(Betas) %*% p_x_list$Sigma %*% Betas) / 
+           ((t(Betas) %*% p_x_list$Sigma %*% Betas) + var_e))
+  
+  # # R^2 
+  # R2 <- (t(Betas) %*% cov(X) %*% Betas) / 
+  #   ((t(Betas) %*% cov(X) %*% Betas) + SD_e^2)
+  
   # Generate Y data
   outcome_data <- rnorm(n = n,
                         mean = as.vector(intercept) + pred_data %*% Betas,
@@ -427,15 +475,23 @@ generate_Y_MultiReg_method2 <- function(n, p_x, p_y) {
                       X = pred_data)
   
   # Add population parameter attributes to output 
-  ## Loop relevant population parameters for predictors
-  for (i in seq_along(p_x)) {
-    attr(output_data, names(p_x[i])) <- p_x[[i]]
-  }
   
-  ## Loop relevant population parameters for outcome
-  for (i in seq_along(p_y)) {
-    attr(output_data, names(p_y[i])) <- p_y[[i]]
-  }
+  # Add population parameter attributes to output 
+  attr(output_data, "b0") <- intercept
+  attr(output_data, "b1") <- Betas[1]
+  attr(output_data, "b2") <- Betas[2]
+  attr(output_data, "SD(e)") <- sqrt(var_e)
+  attr(output_data, "R2") <- R2
+  
+  # ## Loop relevant population parameters for predictors
+  # for (i in seq_along(p_x)) {
+  #   attr(output_data, names(p_x[i])) <- p_x[[i]]
+  # }
+  # 
+  # ## Loop relevant population parameters for outcome
+  # for (i in seq_along(p_y)) {
+  #   attr(output_data, names(p_y[i])) <- p_y[[i]]
+  # }
   
   
   return(output_data)
@@ -448,7 +504,7 @@ set.seed(6972)
 # Set parameters
 p_x <- list(Rho = 0.15,
             t_mu = c(2:6),
-            t_sigma = c(1:5))
+            t_sigma = sqrt(c(1:5)))
 
 p_y <- list(beta1 = 1,
             beta2 = 1,
@@ -466,13 +522,28 @@ method1_output <- generate_Y_MultiReg_method1(n = 100000,
 
 # Answer 
 ## Analyze with OLS function 
-OLSfunc(method1_output$y, method1_output$X)
+(ols_output_3d_2 <- OLSfunc(method1_output$y, method1_output$X))
 
-## Difference for mean Y parameter 
-p_y$mu_y - mean(method1_output$y)
+## Difference table
+### Create initial table
+Diff_Tbl_3d_2 <- data.frame(
+  Pop = c(attr(method1_output, "b0"),
+          attr(method1_output, "b1"),
+          attr(method1_output, "b2"),
+          attr(method1_output, "SD(e)"),
+          attr(method1_output, "R2")),
+  Est = ols_output_3d_2[c("b0", "b1", "b2", "SD(e)", "R2"), 
+                        "Estimate"])
 
-## Difference for SD Y parameter 
-p_y$sd_y - sd(method1_output$y)
+### Add difference column 
+Diff_Tbl_3d_2$Diff <- Diff_Tbl_3d_2$Pop - Diff_Tbl_3d_2$Est
+
+### Add rownames 
+rownames(Diff_Tbl_3d_2) <- c(paste0("beta", 0:2),
+                           "SD(e)", 
+                           "R2")
+
+Diff_Tbl_3d_2
 
 # Estimate                  SE          t value                     p
 # b0    5.1263156  0.0807062930012819 63.5181640342362                     0
@@ -484,10 +555,12 @@ p_y$sd_y - sd(method1_output$y)
 # SD(e) 8.9583463                  NA               NA                    NA
 # R2    0.4982514                  NA               NA                    NA
 
-# ## Difference for mean Y parameter
-# -0.06415634
-# ## Difference for SD Y parameter
-# -7.646761
+# Pop       Est         Diff
+# beta0 5.000000 5.0906712 -0.090671194
+# beta1 1.000000 0.9812441  0.018755865
+# beta2 1.000000 1.0199428 -0.019942757
+# SD(e) 4.825922 4.8184817  0.007440416
+# R2    0.500000 0.4986015  0.001398544
 
 
 ### 3) 
@@ -496,7 +569,7 @@ set.seed(1237)
 # Set parameters
 p_x <- list(Rho = 0.15,
             t_mu = c(2:6),
-            t_sigma = c(1:5))
+            t_sigma = sqrt(c(1:5)))
 
 p_y <- list(Rho_y1 = -0.15,
             Rho_y2 = -0.50,
@@ -513,13 +586,28 @@ method2_output <- generate_Y_MultiReg_method2(n = 100000,
 
 # Answer 
 ## Analyze with OLS function 
-OLSfunc(method2_output$y, method2_output$X)
+(ols_output_3d_3 <- OLSfunc(method2_output$y, method2_output$X))
 
-## Difference for mean Y parameter 
-p_y$mu_y - mean(method2_output$y)
+## Difference table
+### Create initial table
+Diff_Tbl_3d_3 <- data.frame(
+  Pop = c(attr(method2_output, "b0"),
+          attr(method2_output, "b1"),
+          attr(method2_output, "b2"),
+          attr(method2_output, "SD(e)"),
+          attr(method2_output, "R2")),
+  Est = ols_output_3d_3[c("b0", "b1", "b2", "SD(e)", "R2"), 
+                        "Estimate"])
 
-## Difference for SD Y parameter 
-p_y$sd_y - sd(method2_output$y)
+### Add difference column 
+Diff_Tbl_3d_3$Diff <- Diff_Tbl_3d_3$Pop - Diff_Tbl_3d_3$Est
+
+### Add rownames 
+rownames(Diff_Tbl_3d_3) <- c(paste0("b", 0:2),
+                             "SD(e)", 
+                             "R2")
+
+Diff_Tbl_3d_3
 
 # Estimate                  SE           t value  p
 # b0    11.0934528   0.025436973611998  436.115278599631  0
@@ -531,8 +619,9 @@ p_y$sd_y - sd(method2_output$y)
 # SD(e)  2.8303933                  NA                NA NA
 # R2     0.4974886                  NA                NA NA
 
-# ## Difference for mean Y parameter
-# 0.01530026
-# ## Difference for SD Y parameter
-# 0.007284232
-
+#         Pop        Est         Diff
+# b0     8.7180880  8.7202533 -0.002165300
+# b1    -0.7058824 -0.7012153 -0.004667076
+# b2    -1.6637807 -1.6560195 -0.007761141
+# SD(e)  2.8284271  2.8303933 -0.001966201
+# R2     0.5000000  0.4974886  0.002511356
