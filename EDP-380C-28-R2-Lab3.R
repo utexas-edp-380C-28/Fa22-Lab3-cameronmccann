@@ -77,6 +77,7 @@ sim_data <- replicate(n = 500, generate_X_Y(n = 100,
                                             p_y = p_y))
 
 # pre-fill results dataset
+## {can do this with: results <- apply(rep_data, 3, analyze)}
 results <- data.frame(matrix(1, 500, 8))
 
 for(i in 1:dim(sim_data)[3]) {
@@ -405,6 +406,9 @@ generate_Y_MultiReg_method1 <- function(n, p_x, p_y) {
   attr(output_data, "b0") <- intercept
   attr(output_data, "b1") <- Betas[1]
   attr(output_data, "b2") <- Betas[2]
+  attr(output_data, "b3") <- Betas[3]
+  attr(output_data, "b4") <- Betas[4]
+  attr(output_data, "b5") <- Betas[5]
   attr(output_data, "SD(e)") <- SD_e
   attr(output_data, "R2") <- p_y$R2
   
@@ -480,6 +484,9 @@ generate_Y_MultiReg_method2 <- function(n, p_x, p_y) {
   attr(output_data, "b0") <- intercept
   attr(output_data, "b1") <- Betas[1]
   attr(output_data, "b2") <- Betas[2]
+  attr(output_data, "b3") <- Betas[3]
+  attr(output_data, "b4") <- Betas[4]
+  attr(output_data, "b5") <- Betas[5]
   attr(output_data, "SD(e)") <- sqrt(var_e)
   attr(output_data, "R2") <- R2
   
@@ -503,7 +510,8 @@ set.seed(6972)
 
 # Set parameters
 p_x <- list(Rho = 0.15,
-            t_mu = c(2:6),
+            #t_mu = c(2:6),
+            t_mu = rep(0, 5),
             t_sigma = sqrt(c(1:5)))
 
 p_y <- list(beta1 = 1,
@@ -530,16 +538,19 @@ Diff_Tbl_3d_2 <- data.frame(
   Pop = c(attr(method1_output, "b0"),
           attr(method1_output, "b1"),
           attr(method1_output, "b2"),
+          attr(method1_output, "b3"),
+          attr(method1_output, "b4"),
+          attr(method1_output, "b5"),
           attr(method1_output, "SD(e)"),
           attr(method1_output, "R2")),
-  Est = ols_output_3d_2[c("b0", "b1", "b2", "SD(e)", "R2"), 
+  Est = ols_output_3d_2[c("b0", "b1", "b2", "b3", "b4", "b5", "SD(e)", "R2"), 
                         "Estimate"])
 
 ### Add difference column 
 Diff_Tbl_3d_2$Diff <- Diff_Tbl_3d_2$Pop - Diff_Tbl_3d_2$Est
 
 ### Add rownames 
-rownames(Diff_Tbl_3d_2) <- c(paste0("beta", 0:2),
+rownames(Diff_Tbl_3d_2) <- c(paste0("beta", 0:5),
                            "SD(e)", 
                            "R2")
 
@@ -555,12 +566,15 @@ Diff_Tbl_3d_2
 # SD(e) 8.9583463                  NA               NA                    NA
 # R2    0.4982514                  NA               NA                    NA
 
-# Pop       Est         Diff
-# beta0 5.000000 5.0906712 -0.090671194
-# beta1 1.000000 0.9812441  0.018755865
-# beta2 1.000000 1.0199428 -0.019942757
-# SD(e) 4.825922 4.8184817  0.007440416
-# R2    0.500000 0.4986015  0.001398544
+# Pop        Est         Diff
+# beta0 25.000000 25.0219373 -0.021937347
+# beta1  1.000000  0.9812441  0.018755865
+# beta2  1.000000  1.0199428 -0.019942757
+# beta3  1.000000  0.9881404  0.011859598
+# beta4  1.000000  0.9852023  0.014797719
+# beta5  1.000000  1.0050628 -0.005062766
+# SD(e)  4.825922  4.8184817  0.007440416
+# R2     0.500000  0.4986015  0.001398544
 
 
 ### 3) 
@@ -594,16 +608,19 @@ Diff_Tbl_3d_3 <- data.frame(
   Pop = c(attr(method2_output, "b0"),
           attr(method2_output, "b1"),
           attr(method2_output, "b2"),
+          attr(method2_output, "b3"),
+          attr(method2_output, "b4"),
+          attr(method2_output, "b5"),
           attr(method2_output, "SD(e)"),
           attr(method2_output, "R2")),
-  Est = ols_output_3d_3[c("b0", "b1", "b2", "SD(e)", "R2"), 
+  Est = ols_output_3d_3[c("b0", "b1", "b2", "b3", "b4", "b5", "SD(e)", "R2"), 
                         "Estimate"])
 
 ### Add difference column 
 Diff_Tbl_3d_3$Diff <- Diff_Tbl_3d_3$Pop - Diff_Tbl_3d_3$Est
 
 ### Add rownames 
-rownames(Diff_Tbl_3d_3) <- c(paste0("b", 0:2),
+rownames(Diff_Tbl_3d_3) <- c(paste0("b", 0:5),
                              "SD(e)", 
                              "R2")
 
@@ -619,9 +636,12 @@ Diff_Tbl_3d_3
 # SD(e)  2.8303933                  NA                NA NA
 # R2     0.4974886                  NA                NA NA
 
-#         Pop        Est         Diff
-# b0     8.7180880  8.7202533 -0.002165300
-# b1    -0.7058824 -0.7012153 -0.004667076
-# b2    -1.6637807 -1.6560195 -0.007761141
-# SD(e)  2.8284271  2.8303933 -0.001966201
-# R2     0.5000000  0.4974886  0.002511356
+#         Pop        Est          Diff
+# b0     8.7180880  8.7381916 -2.010364e-02
+# b1    -0.7058824 -0.7060328  1.504569e-04
+# b2    -1.6637807 -1.6624466 -1.334024e-03
+# b3     0.4075414  0.4039440  3.597378e-03
+# b4     0.7058824  0.7032716  2.610748e-03
+# b5     0.4209069  0.4222341 -1.327148e-03
+# SD(e)  2.8284271  2.8211829  7.244233e-03
+# R2     0.5000000  0.4999777  2.234008e-05
